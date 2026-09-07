@@ -88,6 +88,29 @@ def test_create_request_empty_title(client, login):
     assert resp.json()["code"] == "INVALID"
 
 
+def test_create_request_title_too_long(client, login):
+    headers = login("sam@example.com")
+    resp = client.post(
+        "/requests",
+        json={"title": "x" * 121, "description": "Some description"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID"
+    assert "120" in resp.json()["message"]
+
+
+def test_update_request_title_too_long(client, login):
+    headers = login("sam@example.com")
+    resp = client.patch(
+        "/requests/req-1",
+        json={"title": "x" * 121, "description": "Some new description"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID"
+
+
 def test_create_request_id_continues_sequence(client, login):
     headers = login("sam@example.com")
     data = client.post("/requests", json={"title": "seq"}, headers=headers).json()

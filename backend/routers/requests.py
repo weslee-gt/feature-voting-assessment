@@ -26,6 +26,8 @@ from serializers import support_count, to_detail, to_summary
 
 router = APIRouter(tags=["requests"])
 
+TITLE_MAX_LENGTH = 120
+
 
 @router.get("/requests", response_model=RequestList)
 def list_requests(
@@ -76,13 +78,16 @@ def create_request(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RequestDetail:
-    if not body.title or not body.title.strip():
+    title = (body.title or "").strip()
+    if not title:
         raise AppError("Title is required")
+    if len(title) > TITLE_MAX_LENGTH:
+        raise AppError(f"Title must be {TITLE_MAX_LENGTH} characters or fewer")
     now = utcnow_iso()
     request_id = next_id(db, "request", "req-")
     request = Request(
         id=request_id,
-        title=body.title.strip(),
+        title=title,
         description=(body.description or "").strip(),
         author_id=user.id,
         status="under_review",
@@ -120,9 +125,12 @@ def update_request(
         raise AppError(
             "Only the author or an admin can edit this request", ErrorCode.FORBIDDEN
         )
-    if not body.title or not body.title.strip():
+    title = (body.title or "").strip()
+    if not title:
         raise AppError("Title is required")
-    request.title = body.title.strip()
+    if len(title) > TITLE_MAX_LENGTH:
+        raise AppError(f"Title must be {TITLE_MAX_LENGTH} characters or fewer")
+    request.title = title
     request.description = (body.description or "").strip()
     request.updated_at = utcnow_iso()
     db.commit()
