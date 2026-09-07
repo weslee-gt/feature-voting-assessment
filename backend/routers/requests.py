@@ -26,6 +26,8 @@ from serializers import support_count, to_detail, to_summary
 
 router = APIRouter(tags=["requests"])
 
+DESCRIPTION_MIN_LENGTH = 10
+
 
 @router.get("/requests", response_model=RequestList)
 def list_requests(
@@ -78,12 +80,17 @@ def create_request(
 ) -> RequestDetail:
     if not body.title or not body.title.strip():
         raise AppError("Title is required")
+    description = (body.description or "").strip()
+    if len(description) < DESCRIPTION_MIN_LENGTH:
+        raise AppError(
+            f"Description must be at least {DESCRIPTION_MIN_LENGTH} characters"
+        )
     now = utcnow_iso()
     request_id = next_id(db, "request", "req-")
     request = Request(
         id=request_id,
         title=body.title.strip(),
-        description=(body.description or "").strip(),
+        description=description,
         author_id=user.id,
         status="under_review",
         merged_into=None,
@@ -122,8 +129,13 @@ def update_request(
         )
     if not body.title or not body.title.strip():
         raise AppError("Title is required")
+    description = (body.description or "").strip()
+    if len(description) < DESCRIPTION_MIN_LENGTH:
+        raise AppError(
+            f"Description must be at least {DESCRIPTION_MIN_LENGTH} characters"
+        )
     request.title = body.title.strip()
-    request.description = (body.description or "").strip()
+    request.description = description
     request.updated_at = utcnow_iso()
     db.commit()
     db.refresh(request)

@@ -65,7 +65,8 @@ def test_get_request_missing(client):
 def test_create_request(client, login):
     headers = login("sam@example.com")
     resp = client.post(
-        "/requests", json={"title": "New idea", "description": "desc"}, headers=headers
+        "/requests", json={"title": "New idea", "description": "A longer description of the idea"},
+        headers=headers,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -88,9 +89,36 @@ def test_create_request_empty_title(client, login):
     assert resp.json()["code"] == "INVALID"
 
 
+def test_create_request_short_description(client, login):
+    headers = login("sam@example.com")
+    resp = client.post(
+        "/requests",
+        json={"title": "Valid title", "description": "too short"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID"
+    assert "Description" in resp.json()["message"]
+
+
+def test_update_request_short_description(client, login):
+    headers = login("sam@example.com")
+    resp = client.patch(
+        "/requests/req-1",
+        json={"title": "Renamed", "description": "short"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID"
+
+
 def test_create_request_id_continues_sequence(client, login):
     headers = login("sam@example.com")
-    data = client.post("/requests", json={"title": "seq"}, headers=headers).json()
+    data = client.post(
+        "/requests",
+        json={"title": "seq", "description": "Sequence check description"},
+        headers=headers,
+    ).json()
     assert data["id"] == "req-13"
 
 
@@ -98,11 +126,11 @@ def test_update_request_author(client, login):
     headers = login("sam@example.com")
     resp = client.patch(
         "/requests/req-1",
-        json={"title": "Renamed", "description": "new desc"},
+        json={"title": "Renamed", "description": "new description text"},
         headers=headers,
     )
     assert resp.json()["title"] == "Renamed"
-    assert resp.json()["description"] == "new desc"
+    assert resp.json()["description"] == "new description text"
 
 
 def test_update_request_non_owner_forbidden(client, login):
@@ -114,7 +142,11 @@ def test_update_request_non_owner_forbidden(client, login):
 
 def test_update_request_admin_any(client, login):
     headers = login("lee@example.com")
-    resp = client.patch("/requests/req-1", json={"title": "admin edit"}, headers=headers)
+    resp = client.patch(
+        "/requests/req-1",
+        json={"title": "admin edit", "description": "Edited by an admin user"},
+        headers=headers,
+    )
     assert resp.status_code == 200
     assert resp.json()["title"] == "admin edit"
 
